@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routes.user_routes import user_router
 from app.database.db import Base, engine
 from app.models.user_model import User  # Import to register model
-
+from app.routes.admin_routes import admin_router
+from app.routes.job_routes import job_router
 app = FastAPI()
 
 # Create database tables on startup
@@ -18,3 +19,5 @@ app.add_middleware(
 )
 
 app.include_router(user_router)
+app.include_router(admin_router)
+app.include_router(job_router)

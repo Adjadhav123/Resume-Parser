@@ -6,7 +6,7 @@ from app.core.config import settings
 import jwt
 from app.database.db import get_db
 from app.models.user_model import User 
-from app.schemas.user_schemas import UserSchema, UserResponseScema, UserLoginSchema  
+from app.schemas.user_schemas import UserSchema, UserResponseSchema, UserLoginSchema  
 
 password_hasher = PasswordHash.recommended()
 
