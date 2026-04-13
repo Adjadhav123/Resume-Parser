@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from fastapi import FastAPI, Depends, HTTPException, Request
 from app.models.job_model import JobPosting, JobStatus
 from app.schemas.job_schemas import JobResponse, JobSchema
+from app.services.job_embeddings import JobEmbeddings
 from app.database.db import get_db
 from app.core.helpers import is_authenticated
 from app.models.admin_model import Admin
@@ -32,6 +33,14 @@ def create_job(job : JobSchema, db : Session, admin : Admin):
     db.add(new_job)
     db.commit()
     db.refresh(new_job)
+
+
+
+    try:
+        job_embeddings = JobEmbeddings()
+        job_embeddings.sync_add_job(new_job)
+    except Exception as e:
+        print(f"Error syncing job embeddings: {e}")
 
     return new_job
 
@@ -71,6 +80,13 @@ def update_job(job_id : int, job_data : JobSchema, db : Session, admin : Admin):
 
     db.commit() 
     db.refresh(job)
+
+    try:
+        job_embeddings = JobEmbeddings()
+        job_embeddings.sync_update_job(job)
+    except Exception as e:
+        print(f"Error syncing job embeddings: {e}")
+        
     return job
 
 
@@ -83,5 +99,11 @@ def delete_job(job_id : int, db: Session, admin : Admin):
     
     db.delete(job)
     db.commit()
+
+    try:
+        job_embeddings = JobEmbeddings()
+        job_embeddings.sync_delete_job(job_id)
+    except Exception as e:
+        print(f"Error syncing job embeddings: {e}")
 
     return {"detail" : "Job deleted successfully"}

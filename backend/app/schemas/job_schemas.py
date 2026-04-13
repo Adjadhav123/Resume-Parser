@@ -7,7 +7,7 @@ from enum import Enum
 class JobStatusEnum(str, Enum):
     ACTIVE = "active"
     INACTIVE = "inactive"
-    DRAFT = "draft"
+    DRAFT  = "draft"
 
 
 class JobSchema(BaseModel):

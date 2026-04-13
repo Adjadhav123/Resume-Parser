@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { uploadResume } from '../services/resumeApi';
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap');
@@ -146,6 +147,157 @@ const styles = `
   .header-left p {
     color: var(--muted);
     font-size: 0.95rem;
+  }
+
+  .upload-section {
+    background: rgba(255,255,255,0.035);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 40px;
+    margin-bottom: 48px;
+    position: relative;
+  }
+
+  .upload-area {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: rgba(200,245,66,0.02);
+  }
+
+  .upload-area:hover {
+    border-color: var(--accent);
+    background: rgba(200,245,66,0.06);
+  }
+
+  .upload-area.drag-active {
+    border-color: var(--accent);
+    background: rgba(200,245,66,0.1);
+  }
+
+  .upload-icon {
+    font-size: 3rem;
+    margin-bottom: 16px;
+  }
+
+  .upload-area p {
+    color: var(--text);
+    font-size: 1rem;
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+
+  .upload-area span {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  input[type="file"] {
+    display: none;
+  }
+
+  .button {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 16px;
+  }
+
+  .button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(200,245,66,0.2);
+  }
+
+  .button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .file-name {
+    margin-top: 12px;
+    padding: 12px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 6px;
+    color: var(--accent);
+    font-size: 0.9rem;
+  }
+
+  .loading {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .error {
+    background: rgba(255,100,100,0.1);
+    border: 1px solid rgba(255,100,100,0.3);
+    color: #ff6464;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+  }
+
+  .success {
+    background: rgba(66,245,200,0.1);
+    border: 1px solid rgba(66,245,200,0.3);
+    color: var(--accent2);
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+  }
+
+  .matches-section {
+    margin-top: 40px;
+    padding: 20px;
+    background: rgba(200,245,66,0.08);
+    border: 1px solid rgba(200,245,66,0.2);
+    border-radius: 8px;
+  }
+
+  .matches-section h3 {
+    color: var(--accent);
+    margin-bottom: 20px;
+    font-size: 1.2rem;
+  }
+
+  .match-score {
+    background: rgba(66,245,200,0.2);
+    color: var(--accent2);
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .section-divider {
+    margin: 60px 0 40px 0;
+    padding: 20px 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-divider h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 800;
+    margin-bottom: 8px;
   }
 
   .search-box {
@@ -365,6 +517,13 @@ const styles = `
 `;
 
 function UserDashboard({ onNavigate }) {
+  const [file, setFile] = useState(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [matches, setMatches] = useState([]);
+  const [dragActive, setDragActive] = useState(false);
+
   const [jobs, setJobs] = useState([]);
   const [filteredJobs, setFilteredJobs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -446,6 +605,61 @@ function UserDashboard({ onNavigate }) {
     onNavigate('/');
   };
 
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (droppedFile && (droppedFile.name.endsWith('.pdf') || droppedFile.name.endsWith('.docx'))) {
+      setFile(droppedFile);
+      setUploadError(null);
+    } else {
+      setUploadError('Please upload a PDF or DOCX file');
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      setUploadError(null);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!file) {
+      setUploadError('Please select a file');
+      return;
+    }
+
+    setUploadLoading(true);
+    setUploadError(null);
+    setUploadSuccess(false);
+
+    try {
+      const result = await uploadResume(file, token);
+      setUploadSuccess(true);
+      setMatches(result.matches || []);
+      setFile(null);
+    } catch (err) {
+      setUploadError(err.message || 'Upload failed');
+      setMatches([]);
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
   return (
     <>
       <style>{styles}</style>
@@ -471,9 +685,79 @@ function UserDashboard({ onNavigate }) {
       <div className="container">
         <div className="header">
           <div className="header-left">
-            <h1>Available Jobs 💼</h1>
-            <p>Browse and find your next opportunity</p>
+            <h1>Upload Your Resume 📄</h1>
+            <p>Find the best job matches instantly</p>
           </div>
+        </div>
+
+        <div className="upload-section">
+          {uploadError && <div className="error">{uploadError}</div>}
+          {uploadSuccess && <div className="success">✓ Resume uploaded and matched successfully!</div>}
+
+          <div
+            className={`upload-area ${dragActive ? 'drag-active' : ''}`}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+            onClick={() => document.getElementById('file-input').click()}
+          >
+            <div className="upload-icon">📄</div>
+            <p>Drag and drop your resume</p>
+            <span>or click to select (PDF or DOCX)</span>
+            <input
+              id="file-input"
+              type="file"
+              accept=".pdf,.docx"
+              onChange={handleFileChange}
+            />
+          </div>
+
+          {file && (
+            <div className="file-name">
+              ✓ Selected: {file.name}
+            </div>
+          )}
+
+          <button
+            className="button"
+            onClick={handleUpload}
+            disabled={!file || uploadLoading}
+          >
+            {uploadLoading ? <span className="loading">⏳ Uploading...</span> : 'Upload & Match'}
+          </button>
+        </div>
+
+        {/* Matching Jobs Section */}
+        {matches.length > 0 && (
+          <div className="matches-section">
+            <h3>🎯 Top Matching Jobs for Your Resume ({matches.length})</h3>
+            <div className="jobs-grid">
+              {matches.map((job, idx) => (
+                <div key={idx} className="job-card">
+                  <div className="job-header">
+                    <div className="job-info">
+                      <h3 className="job-title">{job.title}</h3>
+                      <p className="job-company">{job.company}</p>
+                    </div>
+                    <div className="match-score">Match: {(job.score * 100).toFixed(0)}%</div>
+                  </div>
+                  <div className="job-meta">
+                    <div className="meta-item">
+                      <span className="meta-label">📍 Location</span>
+                      <span className="meta-value">{job.location || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* All Jobs Section */}
+        <div className="section-divider">
+          <h2>Browse All Jobs 💼</h2>
+          <p style={{ color: 'var(--muted)' }}>Explore more opportunities</p>
         </div>
 
         {/* Search Bar */}

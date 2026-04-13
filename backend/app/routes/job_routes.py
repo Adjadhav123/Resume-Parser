@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, HTTPException, Depends, Request
-from app.models.job_model import JobPosting
+from app.models.job_model import JobPosting, JobStatus
 from app.schemas.job_schemas import JobResponse,JobSchema
 from app.database.db import get_db
 from app.core.helpers import is_authenticated_admin
@@ -17,7 +17,7 @@ def create_job_endpoint(job : JobSchema, db : Session = Depends(get_db), admin :
 @job_router.get("/browse")
 def browse_all_jobs(db : Session = Depends(get_db)):
     """Public endpoint to browse all active jobs"""
-    jobs = db.query(JobPosting).filter(JobPosting.status == "active").all()
+    jobs = db.query(JobPosting).filter(JobPosting.status == JobStatus.ACTIVE).all()
     return jobs
 
 @job_router.get("/all-jobs")

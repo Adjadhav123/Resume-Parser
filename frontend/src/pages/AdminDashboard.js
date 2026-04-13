@@ -475,16 +475,28 @@ function AdminDashboard({ onNavigate }) {
 
       if (editingId) {
         await updateJob(editingId, jobData, token);
+        // Optimistic update - update local state immediately
+        setJobs((prevJobs) => 
+          prevJobs.map((job) => 
+            job.job_id === editingId 
+              ? { ...job, ...jobData }
+              : job
+          )
+        );
         setMessage('Job updated successfully!');
       } else {
-        await createJob(jobData, token);
+        const response = await createJob(jobData, token);
+        setJobs((prevJobs) => [...prevJobs, response]);
         setMessage('Job created successfully!');
       }
 
       handleCloseModal();
-      await fetchJobs();
+      // Clear message after 3 seconds
+      setTimeout(() => setMessage(''), 3000);
     } catch (err) {
       setError(err.message || 'Failed to save job');
+      // Clear error after 5 seconds
+      setTimeout(() => setError(''), 5000);
     }
   };
 
@@ -493,10 +505,16 @@ function AdminDashboard({ onNavigate }) {
       try {
         setError('');
         await deleteJob(jobId, token);
+        // Optimistic update - remove from local state immediately
+        setJobs((prevJobs) => prevJobs.filter((job) => job.job_id !== jobId));
         setMessage('Job deleted successfully!');
-        await fetchJobs();
+        // Clear message after 3 seconds
+        setTimeout(() => setMessage(''), 3000);
       } catch (err) {
         setError(err.message || 'Failed to delete job');
+        // Clear error after 5 seconds and refresh jobs
+        setTimeout(() => setError(''), 5000);
+        await fetchJobs();
       }
     }
   };
